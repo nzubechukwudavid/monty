@@ -1,58 +1,52 @@
 #include "monty.h"
-#define BUFSIZE 64
 
-char *operand;
+stack_t *head = NULL;
 
 /**
- * main - monty interpreter
- * @argc: int
- * @argv: list of arguments
- * Return: nothing
- */
-int main(int argc, char const *argv[])
+  * main - The Monty Interpreter entry point
+  * @argn: The args number
+  * @args: The args passed to the interpreter
+  *
+  * Return: Always zero
+  */
+int main(int argn, char *args[])
 {
-	line_t *lines;
-	char **line;
-	int line_number;
-	stack_t *stack;
-	char *content;
-	void (*func)(stack_t**, unsigned int);
+	FILE *fd = NULL;
+	size_t line_len = 0;
+	unsigned int line_num = 1;
+	int readed = 0, op_status = 0;
+	char *filename = NULL, *op_code = NULL, *op_param = NULL, *buff = NULL;
 
-	stack = NULL;
+	filename = args[1];
+	check_args_num(argn);
+	fd = open_file(filename);
 
-	if (argc == 1)
+	while ((readed = getline(&buff, &line_len, fd)) != -1)
 	{
-		fprintf(stderr, "USAGE: monty file\n");
-		exit(EXIT_FAILURE);
-	}
-	lines = textfile_to_array(argv[1]);
-	if (lines == NULL)
-		return (0);
-
-	line_number = 0;
-	while ((lines + line_number)->content != NULL)
-	{
-		content = (lines + line_number)->content;
-		line = split_line(content);
-		operand = line[1];
-
-		func = get_op_func(line[0]);
-		if (func == NULL)
+		op_code = strtok(buff, "\t\n ");
+		if (op_code)
 		{
-			/*TODO: Refactor: Edit more efifcient way to free memory on exit*/
-			fprintf(stderr, "L%d: unknown instruction %s\n", line_number + 1, line[0]);
-			free(line);
-			free_stack(stack);
-			free_lines(lines);
-			exit(EXIT_FAILURE);
+			if (op_code[0] == '#')
+			{
+				++line_num;
+				continue;
+			}
+
+			op_param = strtok(NULL, "\t\n ");
+			op_status = handle_execution(op_code, op_param, line_num, op_status);
+
+			if (op_status >= 100 && op_status < 300)
+			{
+				fclose(fd);
+				handle_error(op_status, op_code, line_num, buff);
+			}
 		}
 
-		func(&stack, line_number + 1);
-		free(line);
-		line_number++;
+		++line_num;
 	}
 
-	free_stack(stack);
-	free_lines(lines);
+	frees_stack();
+	free(buff);
+	fclose(fd);
 	return (0);
 }
